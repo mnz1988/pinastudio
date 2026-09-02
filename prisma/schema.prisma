@@ -13,8 +13,8 @@ datasource db {
   // Local dev default: SQLite — zero setup, file-based.
   // For production on Vercel: change provider to "postgresql" and set
   // DATABASE_URL to your Postgres connection string (Neon / Vercel Postgres / Supabase).
-  provider ="postgresql" 
   // provider ="sqlite"
+  provider ="postgresql" 
   url      = env("DATABASE_URL")
 }
 
