@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200">
+  <rect width="800" height="1200" fill="#1a1a1a"/>
+  <circle cx="400" cy="420" r="180" fill="#3a3a3a"/>
+  <rect x="200" y="620" width="400" height="500" rx="120" fill="#2c2c2c"/>
+  <text x="400" y="1150" fill="#666" font-size="24" text-anchor="middle" font-family="sans-serif">
+    جایگزین با عکس واقعی (پرتره - عمودی)
+  </text>
+</svg>

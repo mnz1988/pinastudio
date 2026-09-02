@@ -1,0 +1,119 @@
+// Prisma schema
+// Local dev: SQLite (file db). Production (Vercel): switch provider to "postgresql"
+// and set DATABASE_URL to a Postgres connection string (e.g. Neon / Vercel Postgres).
+// NOTE: SQLite doesn't support native enums, so role/status fields below are
+// plain strings with a comment listing the allowed values — this keeps the
+// exact same schema working on both SQLite and Postgres without edits.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Local dev default: SQLite — zero setup, file-based.
+  // For production on Vercel: change provider to "postgresql" and set
+  // DATABASE_URL to your Postgres connection string (Neon / Vercel Postgres / Supabase).
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  phone         String?
+  passwordHash  String?
+  role          String   @default("MEMBER") // "ADMIN" | "MEMBER"
+  createdAt     DateTime @default(now())
+  orders        Order[]
+  messages      ContactMessage[]
+}
+
+// Homepage rotating hero texts (admin editable), each in a language.
+// device controls which viewport shows this text: "all" | "mobile" | "desktop"
+model HeroText {
+  id        String   @id @default(cuid())
+  content   String   // may contain \n line breaks for multi-line display
+  lang      String   // "en" | "fa"
+  device    String   @default("all") // "all" | "mobile" | "desktop"
+  fontSize  String   @default("lg") // "sm" | "md" | "lg" | "xl"
+  position  String   @default("bottom-center") // "{top|center|bottom}-{right|center|left}"
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+}
+
+// Site-wide simple settings (hero image, logo, about content, etc.)
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+// Main navigation menu labels — admin writes the exact text (Persian or
+// English) shown for each fixed page link.
+model MenuItem {
+  id    String @id @default(cuid())
+  href  String @unique // "/" | "/about" | "/portfolio" | "/contact"
+  label String
+  order Int    @default(0)
+}
+
+model Project {
+  id           String    @id @default(cuid())
+  title        String
+  slug         String    @unique
+  summary      String    // short paragraph shown in popup
+  actionLabel  String    @default("مشاهده کامل")
+  coverImage   String    // url/path
+  coverWidth   Int?
+  coverHeight  Int?
+  orientation  String    @default("horizontal") // horizontal | vertical
+  order        Int       @default(0)
+  published    Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  blocks       ContentBlock[]
+}
+
+// Flexible content blocks for full project/workshop page (image or text, in order)
+model ContentBlock {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  type      String   // "text" | "image"
+  content   String   // text content or image url
+  order     Int      @default(0)
+}
+
+// Content blocks for the "About" page body (below the hero) — same idea as
+// ContentBlock but not tied to a project. type: "text" | "image" | "gallery"
+// (for "gallery", content is a comma-separated list of image URLs shown as a row).
+model AboutBlock {
+  id      String @id @default(cuid())
+  type    String // "text" | "image" | "gallery"
+  content String
+  order   Int    @default(0)
+}
+
+// Custom order requests from members (سفارش سفارشی) — no payment integration,
+// admin reviews and follows up manually (e.g. by email/phone).
+model Order {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  title       String
+  description String
+  status      String   @default("PENDING") // "PENDING" | "IN_PROGRESS" | "DONE" | "CANCELLED"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  createdAt DateTime @default(now())
+}
