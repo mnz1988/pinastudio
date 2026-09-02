@@ -35,28 +35,6 @@ npm run dev
 سایت روی `http://localhost:3000` بالا می‌آید.
 برای ورود به پنل ادمین به `http://localhost:3000/login` بروید — ایمیل و رمز عبور همان مقادیر `ADMIN_EMAIL` و `ADMIN_PASSWORD` در فایل `.env` است (پیش‌فرض: `admin@example.com` / `change-me-please` — حتماً قبل از هر کار عوضش کنید).
 
-### جایگزینی تصاویر واقعی
-سه فایل placeholder (SVG) در پوشه `public/` قرار دارند — آن‌ها را با تصاویر واقعی جایگزین کنید:
-- `public/hero-portrait.svg` → تصویر پرتره عمودی صفحه اول (نسخه موبایل)
-- `public/hero-landscape.svg` → تصویر پرتره افقی صفحه اول (دسکتاپ/تبلت)
-- `public/logo.svg` → لوگویی که در ترنزیشن بین صفحات پیکسلی می‌شود (بهتر است ساده و کنتراست بالا باشد)
-
-می‌توانید فایل‌ها را با هر پسوندی (jpg/png/svg) جایگزین کنید؛ فقط مسیر ارجاع در `app/page.tsx` (برای هیرو) و `components/PageTransition.tsx` (برای لوگو) را با نام فایل جدید هماهنگ کنید.
-
----
-
-## ۲) قرار دادن کدها روی گیت‌هاب
-
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/<username>/<repo-name>.git
-git push -u origin main
-```
-
-فایل `.env` به‌صورت پیش‌فرض در `.gitignore` است و روی گیت‌هاب آپلود نمی‌شود — کلیدها امن می‌مانند.
 
 ---
 
