@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
-/**
- * On every route change:
- * 1. Overlay fades in while the logo "pixelates in" (blur/steps down resolution).
- * 2. Once fully covered, new page content is already mounted underneath.
- * 3. Overlay reverses (logo "pixelates out") revealing the new page.
- *
- * Replace /public/logo.png with the real logo (ideally a simple, high-contrast mark).
- */
+const COVER_MS = 550; // time for the pixelate-in animation to finish
+const REVEAL_MS = 500; // time for the pixelate-out animation to finish
+
 export default function PageTransition({
   children,
   logoSrc = "/logo.svg",
@@ -20,20 +15,86 @@ export default function PageTransition({
   logoSrc?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [phase, setPhase] = useState<"idle" | "covering" | "revealing">("idle");
-  const prevPath = useRef(pathname);
 
+  const prevPath = useRef(pathname);
+  const navigatingRef = useRef(false); // we've started covering for a pending nav
+  const coverDoneRef = useRef(false); // cover-in animation finished
+  const dataReadyRef = useRef(false); // new page's pathname has arrived
+
+  function startReveal() {
+    setPhase("revealing");
+    setTimeout(() => setPhase("idle"), REVEAL_MS);
+  }
+
+  function maybeReveal() {
+    if (coverDoneRef.current && dataReadyRef.current) {
+      navigatingRef.current = false;
+      startReveal();
+    }
+  }
+
+  // Intercept internal link clicks in the CAPTURE phase so this runs before
+  // Next.js's own <Link> click handler does its preventDefault + router.push.
+  // This lets us start the cover animation immediately, instead of only
+  // after the destination page's data has already finished loading.
   useEffect(() => {
-    if (prevPath.current !== pathname) {
-      prevPath.current = pathname;
+    function onClick(e: MouseEvent) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement)?.closest("a");
+      if (!anchor) return;
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+
+      let url: URL;
+      try {
+        url = new URL(href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === pathname) return;
+
+      e.preventDefault();
+      navigatingRef.current = true;
+      coverDoneRef.current = false;
+      dataReadyRef.current = false;
       setPhase("covering");
-      const t1 = setTimeout(() => setPhase("revealing"), 550);
-      const t2 = setTimeout(() => setPhase("idle"), 1050);
+      setTimeout(() => {
+        coverDoneRef.current = true;
+        maybeReveal();
+      }, COVER_MS);
+      router.push(url.pathname + url.search);
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Fires once the new route has actually rendered (pathname changed).
+  useEffect(() => {
+    if (prevPath.current === pathname) return;
+    prevPath.current = pathname;
+
+    if (navigatingRef.current) {
+      // Cover animation already started on click — just mark data ready.
+      dataReadyRef.current = true;
+      maybeReveal();
+    } else {
+      // Fallback for navigations we didn't intercept (browser back/forward,
+      // programmatic navigation elsewhere) — behave like before.
+      setPhase("covering");
+      const t1 = setTimeout(() => setPhase("revealing"), COVER_MS);
+      const t2 = setTimeout(() => setPhase("idle"), COVER_MS + REVEAL_MS);
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   return (
@@ -49,21 +110,7 @@ export default function PageTransition({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.45, ease: "easeInOut" }}
           >
-            <motion.div
-              className="relative"
-              initial={{
-                scale: phase === "covering" ? 3 : 1,
-                filter: phase === "covering" ? "blur(0px)" : "blur(0px)",
-              }}
-              animate={{
-                scale: phase === "covering" ? [3, 1] : [1, 3],
-                filter:
-                  phase === "covering"
-                    ? ["blur(0px)", "blur(0px)"]
-                    : ["blur(0px)", "blur(0px)"],
-              }}
-              transition={{ duration: 0.5, ease: [0.76, 0, 0.24, 1] }}
-            >
+            <motion.div className="relative">
               <PixelLogo animate={phase === "covering" ? "in" : "out"} logoSrc={logoSrc} />
             </motion.div>
           </motion.div>
@@ -73,11 +120,6 @@ export default function PageTransition({
   );
 }
 
-/**
- * Renders /public/logo.png onto a tiny canvas (very low resolution) then scales
- * it up with pixelated image-rendering, and animates the pixel resolution
- * from coarse -> fine (in) or fine -> coarse (out) for a "pixelating" feel.
- */
 function PixelLogo({ animate, logoSrc }: { animate: "in" | "out"; logoSrc: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [step, setStep] = useState(animate === "in" ? 4 : 48);
